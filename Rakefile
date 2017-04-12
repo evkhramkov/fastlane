@@ -10,7 +10,7 @@ task :yolo do
   ENV['SPACESHIP_DEBUG']='1'
   require 'spaceship'
   Spaceship::Tunes.login('ohayon@me.com')
-  tester = Spaceship::Tunes::Tester::External.find('ohayon.1+testingfastlane@gmail.com')
+  tester = Spaceship::Tunes::Tester::External.find('example@gmail.com')
   app = Spaceship::Application.find('com.thirty-one-parkton.Activate')
   tester.add_to_app!(app.apple_id)
 end
