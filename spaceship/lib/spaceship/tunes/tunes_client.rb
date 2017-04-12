@@ -1211,6 +1211,8 @@ module Spaceship
 
       data = parse_response(r, 'data')['testers']
       handle_itc_response(data) || data[0]
+
+      return tester.find(email) # to also get the tester_id
     end
 
     def delete_tester!(tester)
