@@ -1152,10 +1152,10 @@ module Spaceship
     # e.g.
     #   {"b6f65dbd-c845-4d91-bc39-0b661d608970" => "Boarding",
     #    "70402368-9deb-409f-9a26-bb3f215dfee3" => "Automatic"}
-    def groups
+    def groups(app_id)
       return @cached_groups if @cached_groups
-      r = request(:get, '/WebObjects/iTunesConnect.woa/ra/users/pre/ext')
-      @cached_groups = parse_response(r, 'data')['groups']
+      r = request(:get, "/testflight/v2/providers/#{team_id}/apps/#{app_id}/groups")
+      @cached_groups = parse_response(r, 'data')
     end
 
     def create_tester!(tester: nil, email: nil, first_name: nil, last_name: nil, groups: nil)
@@ -1246,8 +1246,29 @@ module Spaceship
       handle_itc_response(data) || data[0]
     end
 
+    def add_tester_to_external_testing_group!(tester, app_id)
+      groups = groups(app_id)
+      external_group = groups.find { |group| group['isDefaultExternalGroup'] == true }
+      r = add_tester_to_group!(app_id: app_id, group_id: external_group['id'], tester_id: tester.tester_id)
+      require 'pry'; binding.pry
+      puts ''
+    end
+
+    def add_tester_to_group!(app_id: nil, group_id: nil, tester_id: nil)
+      url = "/testflight/v2/providers/#{team_id}/apps/#{app_id}/groups/#{group_id}/testers/#{tester_id}"
+      response = request(:put) do |req|
+        req.url url
+        req.body = {
+          'groupId': group_id,
+          'testerId': tester_id
+        }.to_json
+        req.headers['Content-Type'] = 'application/json'
+      end
+    end
+
     def add_tester_to_app!(tester, app_id)
-      update_tester_from_app!(tester, app_id, true)
+      add_tester_to_external_testing_group!(tester, app_id)
+      # update_tester_from_app!(tester, app_id, true)
     end
 
     def remove_tester_from_app!(tester, app_id)
@@ -1395,37 +1416,6 @@ module Spaceship
     # the ssoTokenForVideo found in the AppVersionRef instance
     def sso_token_for_video
       @sso_token_for_video ||= ref_data.sso_token_for_video
-    end
-
-    def update_tester_from_app!(tester, app_id, testing)
-      url = tester.class.url(app_id)[:update_by_app]
-      data = {
-        users: [
-          {
-            emailAddress: {
-              value: tester.email
-            },
-            firstName: {
-              value: tester.first_name
-            },
-            lastName: {
-              value: tester.last_name
-            },
-            testing: {
-              value: testing
-            }
-          }
-        ]
-      }
-
-      r = request(:post) do |req|
-        req.url url
-        req.body = data.to_json
-        req.headers['Content-Type'] = 'application/json'
-      end
-
-      data = parse_response(r, 'data')
-      handle_itc_response(data)
     end
   end
   # rubocop:enable Metrics/ClassLength
