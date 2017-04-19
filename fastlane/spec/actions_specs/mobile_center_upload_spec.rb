@@ -94,37 +94,41 @@ describe Fastlane do
               'Content-Type' => 'application/json',
               'User-Agent' => 'Faraday v0.12.0.1',
               'X-Api-Token' => 'xxx'
-            })
+            }
+          )
           .to_return(
-              status: 200,
-              body: "{\"upload_id\":\"upload_id\",\"upload_url\":\"https://upload.com\"}",
-              headers: {'Content-Type' => 'application/json'}
-            )
+            status: 200,
+            body: "{\"upload_id\":\"upload_id\",\"upload_url\":\"https://upload.com\"}",
+            headers: { 'Content-Type' => 'application/json' }
+          )
 
         stub_request(:post, "https://upload.com/")
-          .to_return(:status => 200, :body => "", :headers => {})
+          .to_return(status: 200, body: "", headers: {})
 
         stub_request(:patch, "https://api.mobile.azure.com/v0.1/apps/owner/app/release_uploads/upload_id")
           .with(
-            :body => "{\"status\":\"committed\"}",
-            :headers => {
-              'Accept'=>'*/*', 
-              'Accept-Encoding'=>'gzip;q=1.0,deflate;q=0.6,identity;q=0.3',
-              'Content-Type'=>'application/json', 'User-Agent'=>'Faraday v0.12.0.1',
-              'X-Api-Token'=>'xxx'
-            })
-          .to_return(:status => 200, :body => "{\"release_url\":\"v0.1/apps/owner/app/releases/1\"}", :headers => {})
+            body: "{\"status\":\"committed\"}",
+            headers: {
+              'Accept' => '*/*',
+              'Accept-Encoding' => 'gzip;q=1.0,deflate;q=0.6,identity;q=0.3',
+              'Content-Type' => 'application/json', 'User-Agent' => 'Faraday v0.12.0.1',
+              'X-Api-Token' => 'xxx'
+            }
+          )
+          .to_return(status: 200, body: "{\"release_url\":\"v0.1/apps/owner/app/releases/1\"}", headers: {})
 
-          stub_request(:patch, "https://api.mobile.azure.com/release_url")
-            .with(
-              :body => "{\"distribution_group_name\":\"Testers\",\"release_notes\":null}",
-              :headers => {
-                'Accept'=>'*/*',
-                'Accept-Encoding'=>'gzip;q=1.0,deflate;q=0.6,identity;q=0.3',
-                'Content-Type'=>'application/json',
-                'User-Agent'=>'Faraday v0.12.0.1',
-                'X-Api-Token'=>'xxx'})
-            .to_return(:status => 200, :body => "{\"short_version\":\"1.0\"}", :headers => {'Content-Type'=>'application/json'})
+        stub_request(:patch, "https://api.mobile.azure.com/release_url")
+          .with(
+            body: "{\"distribution_group_name\":\"Testers\",\"release_notes\":null}",
+            headers: {
+              'Accept' => '*/*',
+              'Accept-Encoding' => 'gzip;q=1.0,deflate;q=0.6,identity;q=0.3',
+              'Content-Type' => 'application/json',
+              'User-Agent' => 'Faraday v0.12.0.1',
+              'X-Api-Token' => 'xxx'
+            }
+          )
+          .to_return(status: 200, body: "{\"short_version\":\"1.0\"}", headers: { 'Content-Type' => 'application/json' })
 
         Fastlane::FastFile.new.parse("lane :test do
           mobile_center_upload({

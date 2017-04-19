@@ -108,7 +108,7 @@ module Fastlane
         prerequisites = self.load_prerequisites(api_token, owner_name, app_name)
         upload_id = prerequisites['upload_id']
         upload_url = prerequisites['upload_url']
-        
+
         UI.message("Uploading release binary...")
         self.upload(api_token, file, upload_id, upload_url)
         UI.message("Uploaded successfully")
