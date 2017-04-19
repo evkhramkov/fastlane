@@ -98,31 +98,39 @@ module Fastlane
       end
 
       def self.run(params)
+        api_token = params[:api_token]
+        owner_name = params[:owner_name]
+        app_name = params[:app_name]
+        group = params[:group]
+        file = params[:file]
+
+        if file.nil?
+          UI.user_error!("You have to provide a build file")
+        end
+
         UI.message("Loading prerequisites...")
-        prerequisites = self.load_prerequisites(params[:api_token], params[:owner_name], params[:app_name])
+        prerequisites = self.load_prerequisites(api_token, owner_name, app_name)
+        upload_id = prerequisites['upload_id']
+        upload_url = prerequisites['upload_url']
 
         UI.message("Uploading release binary...")
-        self.upload(params[:api_token], params[:file], prerequisites['upload_id'], prerequisites['upload_url'])
+        self.upload(api_token, file, upload_id, upload_url)
         UI.message("Uploaded successfully")
 
-        committed = self.update_release_upload(params[:api_token], params[:owner_name], params[:app_name], prerequisites['upload_id'], 'committed')
+        committed = self.update_release_upload(api_token, owner_name, app_name, upload_id, 'committed')
+        release_url = committed['release_url']
         UI.message("Release committed")
 
-        release = self.add_to_group(params[:api_token], committed['release_url'], params[:group], params[:release_notes])
+        release = self.add_to_group(api_token, release_url, group, params[:release_notes])
         UI.success("Release #{release['short_version']} was successfully released")
-
-        # TODO:
-        # - handle upload failure: release should be aborted
-        # - properly handle errors in each request
-        #
       end
 
       def self.description
-        ""
+        "Distribute new release to Mobile Center"
       end
 
       def self.authors
-        [""]
+        ["evkhramkov"]
       end
 
       def self.return_value
@@ -133,33 +141,48 @@ module Fastlane
         [
           FastlaneCore::ConfigItem.new(key: :api_token,
                                   env_name: "MOBILE_CENTER_API_TOKEN",
-                               description: "Auth token",
+                               description: "API Token for Mobile Center",
                                   optional: false,
-                                      type: String),
+                                      type: String,
+                                      verify_block: proc do |value|
+                                        UI.user_error!("No API token for Mobile Center given, pass using `api_token: 'token'`") unless value and !value.empty?
+                                      end),
 
           FastlaneCore::ConfigItem.new(key: :owner_name,
                                   env_name: "MOBILE_CENTER_OWNER_NAME",
-                               description: "App name",
+                               description: "Owner name",
                                   optional: false,
-                                      type: String),
+                                      type: String,
+                                      verify_block: proc do |value|
+                                        UI.user_error!("No Owner name for Mobile Center given, pass using `owner_name: 'name'`") unless value and !value.empty?
+                                      end),
 
           FastlaneCore::ConfigItem.new(key: :app_name,
                                   env_name: "MOBILE_CENTER_APP_NAME",
                                description: "App name",
                                   optional: false,
-                                      type: String),
+                                      type: String,
+                                      verify_block: proc do |value|
+                                        UI.user_error!("No App name given, pass using `app_name: 'app name'`") unless value and !value.empty?
+                                      end),
 
           FastlaneCore::ConfigItem.new(key: :file,
                                   env_name: "MOBILE_CENTER_DISTRIBUTE_FILE",
                                description: "Build release path",
                                   optional: false,
-                                      type: String),
+                                      type: String,
+                                      verify_block: proc do |value|
+                                        UI.user_error!("Couldn't find build file at path '#{value}'") unless File.exist?(value)
+                                      end),
 
           FastlaneCore::ConfigItem.new(key: :group,
                                   env_name: "MOBILE_CENTER_DISTRIBUTE_GROUP",
                                description: "Distribute group",
                                   optional: false,
-                                      type: String),
+                                      type: String,
+                                      verify_block: proc do |value|
+                                        UI.user_error!("No Distribute Group given, pass using `group: 'group name'`") unless value and !value.empty?
+                                      end),
 
           FastlaneCore::ConfigItem.new(key: :release_notes,
                                   env_name: "MOBILE_CENTER_DISTRIBUTE_RELEASE_NOTES",
@@ -170,11 +193,20 @@ module Fastlane
       end
 
       def self.is_supported?(platform)
-        # Adjust this if your plugin only works for a particular platform (iOS vs. Android, for example)
-        # See: https://github.com/fastlane/fastlane/blob/master/fastlane/docs/Platforms.md
-        #
-        # [:ios, :mac, :android].include?(platform)
         true
+      end
+
+      def self.example_code
+        [
+          'mobile_center_upload(
+            api_token: "...",
+            owner_name: "mobile_center_owner",
+            app_name: "testing_app",
+            file: "./app-release.apk",
+            group: "Testers",
+            release_notes: ""
+          )'
+        ]
       end
     end
   end
