@@ -104,15 +104,11 @@ module Fastlane
         group = params[:group]
         file = params[:file]
 
-        if file.nil?
-          UI.user_error!("You have to provide a build file")
-        end
-
         UI.message("Loading prerequisites...")
         prerequisites = self.load_prerequisites(api_token, owner_name, app_name)
         upload_id = prerequisites['upload_id']
         upload_url = prerequisites['upload_url']
-
+        
         UI.message("Uploading release binary...")
         self.upload(api_token, file, upload_id, upload_url)
         UI.message("Uploaded successfully")
@@ -144,45 +140,45 @@ module Fastlane
                                description: "API Token for Mobile Center",
                                   optional: false,
                                       type: String,
-                                      verify_block: proc do |value|
-                                        UI.user_error!("No API token for Mobile Center given, pass using `api_token: 'token'`") unless value and !value.empty?
-                                      end),
+                              verify_block: proc do |value|
+                                UI.user_error!("No API token for Mobile Center given, pass using `api_token: 'token'`") unless value and !value.empty?
+                              end),
 
           FastlaneCore::ConfigItem.new(key: :owner_name,
                                   env_name: "MOBILE_CENTER_OWNER_NAME",
                                description: "Owner name",
                                   optional: false,
                                       type: String,
-                                      verify_block: proc do |value|
-                                        UI.user_error!("No Owner name for Mobile Center given, pass using `owner_name: 'name'`") unless value and !value.empty?
-                                      end),
+                              verify_block: proc do |value|
+                                UI.user_error!("No Owner name for Mobile Center given, pass using `owner_name: 'name'`") unless value and !value.empty?
+                              end),
 
           FastlaneCore::ConfigItem.new(key: :app_name,
                                   env_name: "MOBILE_CENTER_APP_NAME",
                                description: "App name",
                                   optional: false,
                                       type: String,
-                                      verify_block: proc do |value|
-                                        UI.user_error!("No App name given, pass using `app_name: 'app name'`") unless value and !value.empty?
-                                      end),
+                              verify_block: proc do |value|
+                                UI.user_error!("No App name given, pass using `app_name: 'app name'`") unless value and !value.empty?
+                              end),
 
           FastlaneCore::ConfigItem.new(key: :file,
                                   env_name: "MOBILE_CENTER_DISTRIBUTE_FILE",
                                description: "Build release path",
                                   optional: false,
                                       type: String,
-                                      verify_block: proc do |value|
-                                        UI.user_error!("Couldn't find build file at path '#{value}'") unless File.exist?(value)
-                                      end),
+                              verify_block: proc do |value|
+                                UI.user_error!("Couldn't find build file at path '#{value}'") unless File.exist?(value)
+                              end),
 
           FastlaneCore::ConfigItem.new(key: :group,
                                   env_name: "MOBILE_CENTER_DISTRIBUTE_GROUP",
                                description: "Distribute group",
                                   optional: false,
                                       type: String,
-                                      verify_block: proc do |value|
-                                        UI.user_error!("No Distribute Group given, pass using `group: 'group name'`") unless value and !value.empty?
-                                      end),
+                              verify_block: proc do |value|
+                                UI.user_error!("No Distribute Group given, pass using `group: 'group name'`") unless value and !value.empty?
+                              end),
 
           FastlaneCore::ConfigItem.new(key: :release_notes,
                                   env_name: "MOBILE_CENTER_DISTRIBUTE_RELEASE_NOTES",
