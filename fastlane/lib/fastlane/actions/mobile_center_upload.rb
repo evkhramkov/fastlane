@@ -37,8 +37,8 @@ module Fastlane
         end
       end
 
-      # get upload_id and upload_url for app
-      def self.load_prerequisites(api_token, owner_name, app_name)
+      # creates new release upload and returns its upload_id and upload_url for app
+      def self.create_release_upload(api_token, owner_name, app_name)
         connection = self.connection
 
         response = connection.post do |req|
@@ -66,7 +66,7 @@ module Fastlane
         self.handle_response(response)
       end
 
-      # commit or abort uploaded release
+      # Commits or aborts the upload process for a release
       def self.update_release_upload(api_token, owner_name, app_name, upload_id, status)
         connection = self.connection
 
@@ -98,14 +98,16 @@ module Fastlane
       end
 
       def self.run(params)
+        values = params.values
+
         api_token = params[:api_token]
         owner_name = params[:owner_name]
         app_name = params[:app_name]
         group = params[:group]
         file = params[:file]
 
-        UI.message("Loading prerequisites...")
-        prerequisites = self.load_prerequisites(api_token, owner_name, app_name)
+        UI.message("Starting release upload...")
+        prerequisites = self.create_release_upload(api_token, owner_name, app_name)
         upload_id = prerequisites['upload_id']
         upload_url = prerequisites['upload_url']
 
