@@ -1,21 +1,6 @@
 module Fastlane
   module Actions
     class MobileCenterUploadAction < Action
-      # simple response handler for debug info and errors
-      def self.handle_response(response)
-        case response.status
-        when 200...300
-          if ENV['DEBUG_ACTION']
-            UI.message("DEBUG: #{JSON.pretty_generate(response.body)}\n")
-          end
-          response.body
-        else
-          UI.error("Error #{response.status}: #{response.body}")
-          false
-          # throw "Error"
-        end
-      end
-
       # create request
       def self.connection(upload_url = false)
         require 'faraday'
@@ -104,7 +89,16 @@ module Fastlane
           }
         end
 
-        self.handle_response(response)
+        case response.status
+        when 200...300
+          if ENV['DEBUG_ACTION']
+            UI.message("DEBUG: #{JSON.pretty_generate(response.body)}\n")
+          end
+          response.body
+        else
+          UI.error("Error #{response.status}: #{response.body}")
+          false
+        end
       end
 
       # add release to distribution group
