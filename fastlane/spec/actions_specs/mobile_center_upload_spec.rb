@@ -1,3 +1,56 @@
+def stub_create_release_upload(status)
+  stub_request(:post, "https://api.mobile.azure.com/v0.1/apps/owner/app/release_uploads")
+    .with(
+      body: "{}",
+      headers: {
+        'Accept' => '*/*',
+        'Accept-Encoding' => 'gzip;q=1.0,deflate;q=0.6,identity;q=0.3',
+        'Content-Type' => 'application/json',
+        'User-Agent' => 'Faraday v0.12.0.1',
+        'X-Api-Token' => 'xxx'
+      }
+    )
+    .to_return(
+      status: status,
+      body: "{\"upload_id\":\"upload_id\",\"upload_url\":\"https://upload.com\"}",
+      headers: { 'Content-Type' => 'application/json' }
+    )
+end
+
+def stub_upload(status)
+  stub_request(:post, "https://upload.com/")
+    .to_return(status: status, body: "", headers: {})
+end
+
+def stub_update_release_upload(status, release_status)
+  stub_request(:patch, "https://api.mobile.azure.com/v0.1/apps/owner/app/release_uploads/upload_id")
+    .with(
+      body: "{\"status\":\"#{release_status}\"}",
+      headers: {
+        'Accept' => '*/*',
+        'Accept-Encoding' => 'gzip;q=1.0,deflate;q=0.6,identity;q=0.3',
+        'Content-Type' => 'application/json', 'User-Agent' => 'Faraday v0.12.0.1',
+        'X-Api-Token' => 'xxx'
+      }
+    )
+    .to_return(status: status, body: "{\"release_url\":\"v0.1/apps/owner/app/releases/1\"}", headers: {})
+end
+
+def stub_add_to_group(status)
+  stub_request(:patch, "https://api.mobile.azure.com/release_url")
+    .with(
+      body: "{\"distribution_group_name\":\"Testers\",\"release_notes\":null}",
+      headers: {
+        'Accept' => '*/*',
+        'Accept-Encoding' => 'gzip;q=1.0,deflate;q=0.6,identity;q=0.3',
+        'Content-Type' => 'application/json',
+        'User-Agent' => 'Faraday v0.12.0.1',
+        'X-Api-Token' => 'xxx'
+      }
+    )
+    .to_return(status: status, body: "{\"short_version\":\"1.0\"}", headers: { 'Content-Type' => 'application/json' })
+end
+
 describe Fastlane do
   describe Fastlane::FastFile do
     describe "Mobile Center Integration" do
@@ -85,50 +138,10 @@ describe Fastlane do
       end
 
       it "works with valid parameters" do
-        stub_request(:post, "https://api.mobile.azure.com/v0.1/apps/owner/app/release_uploads")
-          .with(
-            body: "{}",
-            headers: {
-              'Accept' => '*/*',
-              'Accept-Encoding' => 'gzip;q=1.0,deflate;q=0.6,identity;q=0.3',
-              'Content-Type' => 'application/json',
-              'User-Agent' => 'Faraday v0.12.0.1',
-              'X-Api-Token' => 'xxx'
-            }
-          )
-          .to_return(
-            status: 200,
-            body: "{\"upload_id\":\"upload_id\",\"upload_url\":\"https://upload.com\"}",
-            headers: { 'Content-Type' => 'application/json' }
-          )
-
-        stub_request(:post, "https://upload.com/")
-          .to_return(status: 200, body: "", headers: {})
-
-        stub_request(:patch, "https://api.mobile.azure.com/v0.1/apps/owner/app/release_uploads/upload_id")
-          .with(
-            body: "{\"status\":\"committed\"}",
-            headers: {
-              'Accept' => '*/*',
-              'Accept-Encoding' => 'gzip;q=1.0,deflate;q=0.6,identity;q=0.3',
-              'Content-Type' => 'application/json', 'User-Agent' => 'Faraday v0.12.0.1',
-              'X-Api-Token' => 'xxx'
-            }
-          )
-          .to_return(status: 200, body: "{\"release_url\":\"v0.1/apps/owner/app/releases/1\"}", headers: {})
-
-        stub_request(:patch, "https://api.mobile.azure.com/release_url")
-          .with(
-            body: "{\"distribution_group_name\":\"Testers\",\"release_notes\":null}",
-            headers: {
-              'Accept' => '*/*',
-              'Accept-Encoding' => 'gzip;q=1.0,deflate;q=0.6,identity;q=0.3',
-              'Content-Type' => 'application/json',
-              'User-Agent' => 'Faraday v0.12.0.1',
-              'X-Api-Token' => 'xxx'
-            }
-          )
-          .to_return(status: 200, body: "{\"short_version\":\"1.0\"}", headers: { 'Content-Type' => 'application/json' })
+        stub_create_release_upload(200)
+        stub_upload(200)
+        stub_update_release_upload(200, 'committed')
+        stub_add_to_group(200)
 
         Fastlane::FastFile.new.parse("lane :test do
           mobile_center_upload({
