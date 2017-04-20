@@ -128,10 +128,10 @@ module Fastlane
           if ENV['DEBUG_ACTION']
             UI.message("DEBUG: #{JSON.pretty_generate(release)}")
           end
-          
+
           Actions.lane_context[SharedValues::MOBILE_CENTER_DOWNLOAD_LINK] = download_url
           Actions.lane_context[SharedValues::MOBILE_CENTER_BUILD_INFORMATION] = release
-              
+
           UI.message("Public Download URL: #{download_url}") if download_url
           UI.success("Release #{release['short_version']} was successfully distributed")
 
@@ -166,7 +166,7 @@ module Fastlane
             release_url = uploaded['release_url']
             UI.message("Release committed")
 
-            release = self.add_to_group(api_token, release_url, group, params[:release_notes])             
+            self.add_to_group(api_token, release_url, group, params[:release_notes])
             return values if Helper.test?
           end
         end
@@ -235,9 +235,8 @@ module Fastlane
                                   env_name: "MOBILE_CENTER_DISTRIBUTE_RELEASE_NOTES",
                                description: "Release notes",
                                   optional: true,
-                                      type: String
-                             #default_value: Actions.lane_context[SharedValues::FL_CHANGELOG] || "No changelog given"
-                             )
+                                      type: String)
+          # default_value: Actions.lane_context[SharedValues::FL_CHANGELOG] || "No changelog given"
         ]
       end
 
