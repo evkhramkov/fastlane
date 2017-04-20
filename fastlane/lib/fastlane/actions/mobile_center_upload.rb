@@ -1,5 +1,10 @@
 module Fastlane
   module Actions
+    module SharedValues
+      MOBILE_CENTER_DOWNLOAD_LINK = :MOBILE_CENTER_DOWNLOAD_LINK
+      MOBILE_CENTER_BUILD_INFORMATION = :MOBILE_CENTER_BUILD_INFORMATION
+    end
+
     class MobileCenterUploadAction < Action
       # create request
       def self.connection(upload_url = false)
@@ -68,6 +73,7 @@ module Fastlane
 
         case response.status
         when 200...300
+          UI.message("Binary uploaded")
           self.update_release_upload(api_token, owner_name, app_name, upload_id, 'committed')
         else
           UI.error("Error uploading binary #{response.status}: #{response.body}")
@@ -117,7 +123,18 @@ module Fastlane
         case response.status
         when 200...300
           release = response.body
-          UI.success("Release #{release['short_version']} was successfully released")
+          download_url = release['download_url']
+
+          if ENV['DEBUG_ACTION']
+            UI.message("DEBUG: #{JSON.pretty_generate(release)}")
+          end
+          
+          Actions.lane_context[SharedValues::MOBILE_CENTER_DOWNLOAD_LINK] = download_url
+          Actions.lane_context[SharedValues::MOBILE_CENTER_BUILD_INFORMATION] = release
+              
+          UI.message("Public Download URL: #{download_url}") if download_url
+          UI.success("Release #{release['short_version']} was successfully distributed")
+
           release
         when 404
           UI.error("Not found, invalid distribution group name")
@@ -129,7 +146,7 @@ module Fastlane
       end
 
       def self.run(params)
-        # values = params.values
+        values = params.values
         api_token = params[:api_token]
         owner_name = params[:owner_name]
         app_name = params[:app_name]
@@ -149,7 +166,8 @@ module Fastlane
             release_url = uploaded['release_url']
             UI.message("Release committed")
 
-            self.add_to_group(api_token, release_url, group, params[:release_notes])             
+            release = self.add_to_group(api_token, release_url, group, params[:release_notes])             
+            return values if Helper.test?
           end
         end
       end
@@ -217,7 +235,16 @@ module Fastlane
                                   env_name: "MOBILE_CENTER_DISTRIBUTE_RELEASE_NOTES",
                                description: "Release notes",
                                   optional: true,
-                                      type: String)
+                                      type: String
+                             #default_value: Actions.lane_context[SharedValues::FL_CHANGELOG] || "No changelog given"
+                             )
+        ]
+      end
+
+      def self.output
+        [
+          ['MOBILE_CENTER_DOWNLOAD_LINK', 'The newly generated download link for this build'],
+          ['MOBILE_CENTER_BUILD_INFORMATION', 'contains all keys/values from the Mobile CEnter API']
         ]
       end
 

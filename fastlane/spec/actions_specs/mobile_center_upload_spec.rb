@@ -48,7 +48,7 @@ def stub_add_to_group(status)
         'X-Api-Token' => 'xxx'
       }
     )
-    .to_return(status: status, body: "{\"short_version\":\"1.0\"}", headers: { 'Content-Type' => 'application/json' })
+    .to_return(status: status, body: "{\"short_version\":\"1.0\",\"download_link\":\"https://download.link\"}", headers: { 'Content-Type' => 'application/json' })
 end
 
 describe Fastlane do
@@ -143,7 +143,7 @@ describe Fastlane do
         stub_update_release_upload(200, 'committed')
         stub_add_to_group(200)
 
-        Fastlane::FastFile.new.parse("lane :test do
+        download_link = Fastlane::FastFile.new.parse("lane :test do
           mobile_center_upload({
             api_token: 'xxx',
             owner_name: 'owner',
