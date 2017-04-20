@@ -120,7 +120,18 @@ module Fastlane
           }
         end
 
-        self.handle_response(response)
+        case response.status
+        when 200...300
+          release = response.body
+          UI.success("Release #{release['short_version']} was successfully released")
+          release
+        when 404
+          UI.error("Not found, invalid distribution group name")
+          false
+        else
+          UI.error("Error adding to group #{response.status}: #{response.body}")
+          false
+        end
       end
 
       def self.run(params)
@@ -144,8 +155,7 @@ module Fastlane
             release_url = uploaded['release_url']
             UI.message("Release committed")
 
-            release = self.add_to_group(api_token, release_url, group, params[:release_notes])
-            UI.success("Release #{release['short_version']} was successfully released")
+            self.add_to_group(api_token, release_url, group, params[:release_notes])             
           end
         end
       end

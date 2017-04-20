@@ -157,9 +157,6 @@ describe Fastlane do
       it "handles invalid token error" do
         expect do
           stub_create_release_upload(401)
-          stub_upload(400)
-          stub_update_release_upload(200, 'committed')
-          stub_add_to_group(200)
 
           Fastlane::FastFile.new.parse("lane :test do
             mobile_center_upload({
@@ -177,7 +174,6 @@ describe Fastlane do
         stub_create_release_upload(200)
         stub_upload(400)
         stub_update_release_upload(200, 'aborted')
-        stub_add_to_group(200)
 
         Fastlane::FastFile.new.parse("lane :test do
           mobile_center_upload({
@@ -192,9 +188,23 @@ describe Fastlane do
 
       it "handles not found owner or app error" do
         stub_create_release_upload(404)
-        stub_upload(400)
+
+        Fastlane::FastFile.new.parse("lane :test do
+          mobile_center_upload({
+            api_token: 'xxx',
+            owner_name: 'owner',
+            app_name: 'app',
+            file: './fastlane/spec/fixtures/appfiles/Appfile_empty',
+            group: 'Testers'
+          })
+        end").runner.execute(:test)
+      end
+
+      it "handles not found distribution group" do
+        stub_create_release_upload(200)
+        stub_upload(200)
         stub_update_release_upload(200, 'committed')
-        stub_add_to_group(200)
+        stub_add_to_group(404)
 
         Fastlane::FastFile.new.parse("lane :test do
           mobile_center_upload({
