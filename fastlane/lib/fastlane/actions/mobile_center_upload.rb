@@ -10,8 +10,9 @@ module Fastlane
           end
           response.body
         else
-          UI.message("Error #{response.status}: #{response.body}")
-          throw "Error"
+          UI.error("Error #{response.status}: #{response.body}")
+          false
+          # throw "Error"
         end
       end
 
@@ -51,7 +52,9 @@ module Fastlane
       end
 
       # upload binary for specified upload_url
-      def self.upload(api_token, file, upload_id, upload_url)
+      # if succeed, then commits the release
+      # otherwise aborts
+      def self.upload(api_token, owner_name, app_name, file, upload_id, upload_url)
         connection = self.connection(upload_url)
 
         options = {}
@@ -63,7 +66,14 @@ module Fastlane
           req.body = options
         end
 
-        self.handle_response(response)
+        case response.status
+        when 200...300
+          self.update_release_upload(api_token, owner_name, app_name, upload_id, 'committed')
+        else
+          UI.error("Error uploading binary #{response.status}: #{response.body}")
+          self.update_release_upload(api_token, owner_name, app_name, upload_id, 'aborted')
+          false
+        end
       end
 
       # Commits or aborts the upload process for a release
@@ -112,15 +122,24 @@ module Fastlane
         upload_url = prerequisites['upload_url']
 
         UI.message("Uploading release binary...")
-        self.upload(api_token, file, upload_id, upload_url)
-        UI.message("Uploaded successfully")
+        uploaded = self.upload(api_token, owner_name, app_name, file, upload_id, upload_url)
 
-        committed = self.update_release_upload(api_token, owner_name, app_name, upload_id, 'committed')
-        release_url = committed['release_url']
-        UI.message("Release committed")
+        if (uploaded)
+          release_url = uploaded['release_url']
+          UI.message("Release committed")
 
-        release = self.add_to_group(api_token, release_url, group, params[:release_notes])
-        UI.success("Release #{release['short_version']} was successfully released")
+          release = self.add_to_group(api_token, release_url, group, params[:release_notes])
+          UI.success("Release #{release['short_version']} was successfully released")
+        else
+          UI.error("Release aborted")
+        end
+
+        # committed = self.update_release_upload(api_token, owner_name, app_name, upload_id, 'committed')
+        # release_url = committed['release_url']
+        # UI.message("Release committed")
+
+        # release = self.add_to_group(api_token, release_url, group, params[:release_notes])
+        # UI.success("Release #{release['short_version']} was successfully released")
       end
 
       def self.description

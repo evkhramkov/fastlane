@@ -153,6 +153,40 @@ describe Fastlane do
           })
         end").runner.execute(:test)
       end
+
+      it "handles upload error" do
+        stub_create_release_upload(200)
+        stub_upload(400)
+        stub_update_release_upload(200, 'aborted')
+        stub_add_to_group(200)
+
+        Fastlane::FastFile.new.parse("lane :test do
+          mobile_center_upload({
+            api_token: 'xxx',
+            owner_name: 'owner',
+            app_name: 'app',
+            file: './fastlane/spec/fixtures/appfiles/Appfile_empty',
+            group: 'Testers'
+          })
+        end").runner.execute(:test)
+      end
+
+      it "handles commit error" do
+        stub_create_release_upload(200)
+        stub_upload(400)
+        stub_update_release_upload(200, 'aborted')
+        stub_add_to_group(200)
+
+        Fastlane::FastFile.new.parse("lane :test do
+          mobile_center_upload({
+            api_token: 'xxx',
+            owner_name: 'owner',
+            app_name: 'app',
+            file: './fastlane/spec/fixtures/appfiles/Appfile_empty',
+            group: 'Testers'
+          })
+        end").runner.execute(:test)
+      end
     end
   end
 end
