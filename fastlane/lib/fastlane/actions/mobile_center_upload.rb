@@ -48,7 +48,22 @@ module Fastlane
           req.body = {}
         end
 
-        self.handle_response(response)
+        case response.status
+        when 200...300
+          if ENV['DEBUG_ACTION']
+            UI.message("DEBUG: #{JSON.pretty_generate(response.body)}\n")
+          end
+          response.body
+        when 401
+          UI.user_error!("Auth Error, provided invalid token")
+          false
+        when 404
+          UI.error("Not found, invalid owner or application name")
+          false
+        else
+          UI.error("Error #{response.status}: #{response.body}")
+          false
+        end
       end
 
       # upload binary for specified upload_url
@@ -72,6 +87,7 @@ module Fastlane
         else
           UI.error("Error uploading binary #{response.status}: #{response.body}")
           self.update_release_upload(api_token, owner_name, app_name, upload_id, 'aborted')
+          UI.error("Release aborted")
           false
         end
       end
@@ -108,8 +124,7 @@ module Fastlane
       end
 
       def self.run(params)
-        values = params.values
-
+        # values = params.values
         api_token = params[:api_token]
         owner_name = params[:owner_name]
         app_name = params[:app_name]
@@ -117,29 +132,22 @@ module Fastlane
         file = params[:file]
 
         UI.message("Starting release upload...")
-        prerequisites = self.create_release_upload(api_token, owner_name, app_name)
-        upload_id = prerequisites['upload_id']
-        upload_url = prerequisites['upload_url']
+        upload_details = self.create_release_upload(api_token, owner_name, app_name)
+        if upload_details
+          upload_id = upload_details['upload_id']
+          upload_url = upload_details['upload_url']
 
-        UI.message("Uploading release binary...")
-        uploaded = self.upload(api_token, owner_name, app_name, file, upload_id, upload_url)
+          UI.message("Uploading release binary...")
+          uploaded = self.upload(api_token, owner_name, app_name, file, upload_id, upload_url)
 
-        if (uploaded)
-          release_url = uploaded['release_url']
-          UI.message("Release committed")
+          if uploaded
+            release_url = uploaded['release_url']
+            UI.message("Release committed")
 
-          release = self.add_to_group(api_token, release_url, group, params[:release_notes])
-          UI.success("Release #{release['short_version']} was successfully released")
-        else
-          UI.error("Release aborted")
+            release = self.add_to_group(api_token, release_url, group, params[:release_notes])
+            UI.success("Release #{release['short_version']} was successfully released")
+          end
         end
-
-        # committed = self.update_release_upload(api_token, owner_name, app_name, upload_id, 'committed')
-        # release_url = committed['release_url']
-        # UI.message("Release committed")
-
-        # release = self.add_to_group(api_token, release_url, group, params[:release_notes])
-        # UI.success("Release #{release['short_version']} was successfully released")
       end
 
       def self.description
@@ -194,7 +202,7 @@ module Fastlane
 
           FastlaneCore::ConfigItem.new(key: :group,
                                   env_name: "MOBILE_CENTER_DISTRIBUTE_GROUP",
-                               description: "Distribute group",
+                               description: "Distribute group name",
                                   optional: false,
                                       type: String,
                               verify_block: proc do |value|
