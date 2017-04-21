@@ -234,6 +234,7 @@ module Fastlane
           FastlaneCore::ConfigItem.new(key: :release_notes,
                                   env_name: "MOBILE_CENTER_DISTRIBUTE_RELEASE_NOTES",
                                description: "Release notes",
+                             default_value: Actions.lane_context[SharedValues::FL_CHANGELOG] || "No changelog given",
                                   optional: true,
                                       type: String)
           # default_value: Actions.lane_context[SharedValues::FL_CHANGELOG] || "No changelog given"
