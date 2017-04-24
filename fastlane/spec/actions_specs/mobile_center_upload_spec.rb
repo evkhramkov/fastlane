@@ -16,13 +16,7 @@ end
 def stub_update_release_upload(status, release_status)
   stub_request(:patch, "https://api.mobile.azure.com/v0.1/apps/owner/app/release_uploads/upload_id")
     .with(
-      body: "{\"status\":\"#{release_status}\"}",
-      headers: {
-        'Accept' => '*/*',
-        'Accept-Encoding' => 'gzip;q=1.0,deflate;q=0.6,identity;q=0.3',
-        'Content-Type' => 'application/json', 'User-Agent' => 'Faraday v0.12.0.1',
-        'X-Api-Token' => 'xxx'
-      }
+      body: "{\"status\":\"#{release_status}\"}"
     )
     .to_return(status: status, body: "{\"release_url\":\"v0.1/apps/owner/app/releases/1\"}", headers: {})
 end
