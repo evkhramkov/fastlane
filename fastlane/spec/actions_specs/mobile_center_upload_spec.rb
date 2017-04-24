@@ -1,15 +1,6 @@
 def stub_create_release_upload(status)
   stub_request(:post, "https://api.mobile.azure.com/v0.1/apps/owner/app/release_uploads")
-    .with(
-      body: "{}",
-      headers: {
-        'Accept' => '*/*',
-        'Accept-Encoding' => 'gzip;q=1.0,deflate;q=0.6,identity;q=0.3',
-        'Content-Type' => 'application/json',
-        'User-Agent' => 'Faraday v0.12.0.1',
-        'X-Api-Token' => 'xxx'
-      }
-    )
+    .with(body: "{}")
     .to_return(
       status: status,
       body: "{\"upload_id\":\"upload_id\",\"upload_url\":\"https://upload.com\"}",
