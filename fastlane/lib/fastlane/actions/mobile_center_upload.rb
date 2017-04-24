@@ -64,10 +64,10 @@ module Fastlane
 
         options = {}
         options[:upload_id] = upload_id
+        # ipa field is used both for .apk and .ipa files
         options[:ipa] = Faraday::UploadIO.new(file, 'application/octet-stream') if file and File.exist?(file)
 
         response = connection.post do |req|
-          req.headers['X-HockeyAppToken'] = api_token
           req.body = options
         end
 
@@ -220,6 +220,8 @@ module Fastlane
                                       type: String,
                               verify_block: proc do |value|
                                 UI.user_error!("Couldn't find build file at path '#{value}'") unless File.exist?(value)
+                                accepted_formats = [".apk", ".ipa"]
+                                UI.user_error!("Only \".apk\" and \".ipa\" formats are allowed, you provided \"#{File.extname(value)}\"") unless accepted_formats.include? File.extname(value)
                               end),
 
           FastlaneCore::ConfigItem.new(key: :group,

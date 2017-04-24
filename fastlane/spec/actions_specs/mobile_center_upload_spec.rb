@@ -55,7 +55,7 @@ describe Fastlane do
               owner_name: 'owner',
               app_name: 'app',
               group: 'Testers',
-              file: './fastlane/spec/fixtures/fastfiles/Fastfile1'
+              file: './fastlane/spec/fixtures/appfiles/apk_file_empty.apk'
             })
           end").runner.execute(:test)
         end.to raise_error("No API token for Mobile Center given, pass using `api_token: 'token'`")
@@ -68,7 +68,7 @@ describe Fastlane do
               api_token: 'xxx',
               app_name: 'app',
               group: 'Testers',
-              file: './fastlane/spec/fixtures/fastfiles/Fastfile1'
+              file: './fastlane/spec/fixtures/appfiles/apk_file_empty.apk'
             })
           end").runner.execute(:test)
         end.to raise_error("No Owner name for Mobile Center given, pass using `owner_name: 'name'`")
@@ -81,7 +81,7 @@ describe Fastlane do
               api_token: 'xxx',
               owner_name: 'owner',
               group: 'Testers',
-              file: './fastlane/spec/fixtures/fastfiles/Fastfile1'
+              file: './fastlane/spec/fixtures/appfiles/apk_file_empty.apk'
             })
           end").runner.execute(:test)
         end.to raise_error("No App name given, pass using `app_name: 'app name'`")
@@ -94,7 +94,7 @@ describe Fastlane do
               api_token: 'xxx',
               owner_name: 'owner',
               app_name: 'app',
-              file: './fastlane/spec/fixtures/fastfiles/Fastfile1'
+              file: './fastlane/spec/fixtures/appfiles/apk_file_empty.apk'
             })
           end").runner.execute(:test)
         end.to raise_error("No Distribute Group given, pass using `group: 'group name'`")
@@ -127,7 +127,21 @@ describe Fastlane do
         end.to raise_error("Couldn't find build file at path './nothing.apk'")
       end
 
-      it "works with valid parameters" do
+      it "raises an error if given file has invalid extension" do
+        expect do
+          Fastlane::FastFile.new.parse("lane :test do
+            mobile_center_upload({
+              api_token: 'xxx',
+              owner_name: 'owner',
+              app_name: 'app',
+              group: 'Testers',
+              file: './fastlane/spec/fixtures/appfiles/Appfile_empty'
+            })
+          end").runner.execute(:test)
+        end.to raise_error("Only \".apk\" and \".ipa\" formats are allowed, you provided \"\"")
+      end
+
+      it "works with valid parameters for android" do
         stub_create_release_upload(200)
         stub_upload(200)
         stub_update_release_upload(200, 'committed')
@@ -138,7 +152,24 @@ describe Fastlane do
             api_token: 'xxx',
             owner_name: 'owner',
             app_name: 'app',
-            file: './fastlane/spec/fixtures/appfiles/Appfile_empty',
+            file: './fastlane/spec/fixtures/appfiles/apk_file_empty.apk',
+            group: 'Testers'
+          })
+        end").runner.execute(:test)
+      end
+
+      it "works with valid parameters for ios" do
+        stub_create_release_upload(200)
+        stub_upload(200)
+        stub_update_release_upload(200, 'committed')
+        stub_add_to_group(200)
+
+        Fastlane::FastFile.new.parse("lane :test do
+          mobile_center_upload({
+            api_token: 'xxx',
+            owner_name: 'owner',
+            app_name: 'app',
+            file: './fastlane/spec/fixtures/appfiles/ipa_file_empty.ipa',
             group: 'Testers'
           })
         end").runner.execute(:test)
@@ -153,7 +184,7 @@ describe Fastlane do
               api_token: 'xxx',
               owner_name: 'owner',
               app_name: 'app',
-              file: './fastlane/spec/fixtures/appfiles/Appfile_empty',
+              file: './fastlane/spec/fixtures/appfiles/apk_file_empty.apk',
               group: 'Testers'
             })
           end").runner.execute(:test)
@@ -170,7 +201,7 @@ describe Fastlane do
             api_token: 'xxx',
             owner_name: 'owner',
             app_name: 'app',
-            file: './fastlane/spec/fixtures/appfiles/Appfile_empty',
+            file: './fastlane/spec/fixtures/appfiles/apk_file_empty.apk',
             group: 'Testers'
           })
         end").runner.execute(:test)
@@ -184,7 +215,7 @@ describe Fastlane do
             api_token: 'xxx',
             owner_name: 'owner',
             app_name: 'app',
-            file: './fastlane/spec/fixtures/appfiles/Appfile_empty',
+            file: './fastlane/spec/fixtures/appfiles/apk_file_empty.apk',
             group: 'Testers'
           })
         end").runner.execute(:test)
@@ -201,7 +232,7 @@ describe Fastlane do
             api_token: 'xxx',
             owner_name: 'owner',
             app_name: 'app',
-            file: './fastlane/spec/fixtures/appfiles/Appfile_empty',
+            file: './fastlane/spec/fixtures/appfiles/apk_file_empty.apk',
             group: 'Testers'
           })
         end").runner.execute(:test)
@@ -220,7 +251,7 @@ describe Fastlane do
             api_token: 'xxx',
             owner_name: 'owner',
             app_name: 'app',
-            file: './fastlane/spec/fixtures/appfiles/Appfile_empty',
+            file: './fastlane/spec/fixtures/appfiles/apk_file_empty.apk',
             group: 'Testers'
           })
         end").runner.execute(:test)
