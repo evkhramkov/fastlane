@@ -8,6 +8,16 @@ def stub_create_release_upload(status)
     )
 end
 
+def stub_create_dsym_upload(status)
+  stub_request(:post, "https://api.mobile.azure.com/v0.1/apps/owner/app/symbol_uploads")
+    .with(body: "{\"symbol_type\":\"Apple\"}")
+    .to_return(
+      status: status,
+      body: "{\"symbol_upload_id\":\"symbol_upload_id\",\"upload_url\":\"https://upload.com\"}",
+      headers: { 'Content-Type' => 'application/json' }
+    )
+end
+
 def stub_upload(status)
   stub_request(:post, "https://upload.com/")
     .to_return(status: status, body: "", headers: {})
@@ -144,6 +154,7 @@ describe Fastlane do
       end
 
       it "works with valid parameters for ios" do
+        stub_create_dsym_upload(200)
         stub_create_release_upload(200)
         stub_upload(200)
         stub_update_release_upload(200, 'committed')
@@ -155,6 +166,26 @@ describe Fastlane do
             owner_name: 'owner',
             app_name: 'app',
             file: './fastlane/spec/fixtures/appfiles/ipa_file_empty.ipa',
+            dsym: './fastlane/spec/fixtures/appfiles/Appfile_empty',
+            group: 'Testers'
+          })
+        end").runner.execute(:test)
+      end
+
+      it "zips dSYM files is dsym parameter is folder" do
+        stub_create_dsym_upload(200)
+        stub_create_release_upload(200)
+        stub_upload(200)
+        stub_update_release_upload(200, 'committed')
+        stub_add_to_group(200)
+
+        Fastlane::FastFile.new.parse("lane :test do
+          mobile_center_upload({
+            api_token: 'xxx',
+            owner_name: 'owner',
+            app_name: 'app',
+            file: './fastlane/spec/fixtures/appfiles/ipa_file_empty.ipa',
+            dsym: './fastlane/spec/fixtures/appfiles',
             group: 'Testers'
           })
         end").runner.execute(:test)

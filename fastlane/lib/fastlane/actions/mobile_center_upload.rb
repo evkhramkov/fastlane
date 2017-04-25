@@ -56,6 +56,42 @@ module Fastlane
         end
       end
 
+      # creates new dSYM upload, returns symbol_upload_id, upload_url, expiration_date
+      def self.create_dsym_upload(api_token, owner_name, app_name)
+        connection = self.connection
+
+        response = connection.post do |req|
+          req.url("/v0.1/apps/#{owner_name}/#{app_name}/symbol_uploads")
+          req.headers['X-API-Token'] = api_token
+          req.body = {
+            symbol_type: 'Apple'
+          }
+        end
+
+        case response.status
+        when 200...300
+          if ENV['DEBUG_ACTION']
+            UI.message("DEBUG: #{JSON.pretty_generate(response.body)}\n")
+          end
+          response.body
+        when 401
+          UI.user_error!("Auth Error, provided invalid token")
+          false
+        when 404
+          UI.error("Not found, invalid owner or application name")
+          false
+        else
+          UI.error("Error #{response.status}: #{response.body}")
+          false
+        end
+      end
+
+      def self.upload_dsym(api_token, owner_name, app_name, dsym, symbol_upload_id, upload_url)
+        connection = self.connection(upload_url)
+
+        options = {}
+      end
+
       # upload binary for specified upload_url
       # if succeed, then commits the release
       # otherwise aborts
@@ -152,6 +188,28 @@ module Fastlane
         app_name = params[:app_name]
         group = params[:group]
         file = params[:file]
+        dsym = params[:dsym]
+
+        if dsym and (File.extname(file) == '.ipa')
+          dsym_path = dsym
+
+          if File.directory?(dsym)
+            UI.message("dSYM path is folder, zipping...")
+            dsym_path = Actions::ZipAction.run(path: dsym, output_path: dsym + ".dSYM.zip")
+            UI.message("dSYM files zipped")
+          end
+
+          UI.message("Starting dSYM upload...")
+          dsym_upload_details = self.create_dsym_upload(api_token, owner_name, app_name)
+
+          if dsym_upload_details
+            symbol_upload_id = dsym_upload_details['symbol_upload_id']
+            upload_url = dsym_upload_details['upload_url']
+
+            UI.message("Uploading dSYM...")
+            self.upload_dsym(api_token, owner_name, app_name, dsym_path, symbol_upload_id, upload_url)
+          end
+        end
 
         UI.message("Starting release upload...")
         upload_details = self.create_release_upload(api_token, owner_name, app_name)
@@ -224,6 +282,18 @@ module Fastlane
                                 UI.user_error!("Only \".apk\" and \".ipa\" formats are allowed, you provided \"#{File.extname(value)}\"") unless accepted_formats.include? File.extname(value)
                               end),
 
+          FastlaneCore::ConfigItem.new(key: :dsym,
+                                  env_name: "MOBILE_CENTER_DISTRIBUTE_DSYM",
+                               description: "Path to your symbols file. For iOS and Mac provide path to app.dSYM.zip. For Android provide path to mappings.txt file",
+                             default_value: Actions.lane_context[SharedValues::DSYM_OUTPUT_PATH],
+                                  optional: true,
+                                      type: String,
+                              verify_block: proc do |value|
+                                if value
+                                  UI.user_error!("Couldn't find build file at path '#{value}'") unless File.exist?(value)
+                                end
+                              end),
+
           FastlaneCore::ConfigItem.new(key: :group,
                                   env_name: "MOBILE_CENTER_DISTRIBUTE_GROUP",
                                description: "Distribute group name",
@@ -239,7 +309,6 @@ module Fastlane
                              default_value: Actions.lane_context[SharedValues::FL_CHANGELOG] || "No changelog given",
                                   optional: true,
                                       type: String)
-          # default_value: Actions.lane_context[SharedValues::FL_CHANGELOG] || "No changelog given"
         ]
       end
 
