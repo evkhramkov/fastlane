@@ -236,7 +236,7 @@ module Fastlane
         api_token = params[:api_token]
         owner_name = params[:owner_name]
         app_name = params[:app_name]
-        file = params[:file]
+        file = params[:ipa]
         dsym = params[:dsym]
 
         dsym_path = nil
@@ -281,8 +281,12 @@ module Fastlane
         api_token = params[:api_token]
         owner_name = params[:owner_name]
         app_name = params[:app_name]
-        file = params[:file]
         group = params[:group]
+
+        file = [
+          params[:ipa],
+          params[:apk]
+        ].detect { |e| !e.to_s.empty? }
 
         UI.user_error!("Couldn't find build file at path '#{file}'") unless file and File.exist?(file)
         UI.user_error!("No Distribute Group given, pass using `group: 'group name'`") unless group and !group.empty?
@@ -357,14 +361,34 @@ module Fastlane
                                 UI.user_error!("No App name given, pass using `app_name: 'app name'`") unless value and !value.empty?
                               end),
 
-          FastlaneCore::ConfigItem.new(key: :file,
-                                  env_name: "MOBILE_CENTER_DISTRIBUTE_FILE",
-                               description: "Build release path",
+          FastlaneCore::ConfigItem.new(key: :apk,
+                                  env_name: "MOBILE_CENTER_DISTRIBUTE_APK",
+                               description: "Build release path for android build",
+                             default_value: Actions.lane_context[SharedValues::GRADLE_APK_OUTPUT_PATH],
                                   optional: true,
                                       type: String,
+                       conflicting_options: [:ipa],
+                            conflict_block: proc do |value|
+                              UI.user_error!("You can't use 'apk' and '#{value.key}' options in one run")
+                            end,
                               verify_block: proc do |value|
-                                accepted_formats = [".apk", ".ipa"]
-                                UI.user_error!("Only \".apk\" and \".ipa\" formats are allowed, you provided \"#{File.extname(value)}\"") unless accepted_formats.include? File.extname(value)
+                                accepted_formats = [".apk"]
+                                UI.user_error!("Only \".apk\" formats are allowed, you provided \"#{File.extname(value)}\"") unless accepted_formats.include? File.extname(value)
+                              end),
+
+          FastlaneCore::ConfigItem.new(key: :ipa,
+                                  env_name: "MOBILE_CENTER_DISTRIBUTE_IPA",
+                               description: "Build release path for ios build",
+                             default_value: Actions.lane_context[SharedValues::IPA_OUTPUT_PATH],
+                                  optional: true,
+                                      type: String,
+                       conflicting_options: [:apk],
+                            conflict_block: proc do |value|
+                              UI.user_error!("You can't use 'ipa' and '#{value.key}' options in one run")
+                            end,
+                              verify_block: proc do |value|
+                                accepted_formats = [".ipa"]
+                                UI.user_error!("Only \".ipa\" formats are allowed, you provided \"#{File.extname(value)}\"") unless accepted_formats.include? File.extname(value)
                               end),
 
           FastlaneCore::ConfigItem.new(key: :dsym,
@@ -389,6 +413,7 @@ module Fastlane
           FastlaneCore::ConfigItem.new(key: :group,
                                   env_name: "MOBILE_CENTER_DISTRIBUTE_GROUP",
                                description: "Distribute group name",
+                             default_value: "Collaborators",                                  
                                   optional: true,
                                       type: String),
 
@@ -418,7 +443,7 @@ module Fastlane
             api_token: "...",
             owner_name: "mobile_center_owner",
             app_name: "testing_app",
-            file: "./app-release.apk",
+            apk: "./app-release.apk",
             group: "Testers",
             release_notes: ""
           )'
