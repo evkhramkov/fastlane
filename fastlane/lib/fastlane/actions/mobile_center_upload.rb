@@ -232,7 +232,7 @@ module Fastlane
 
       # run whole upload process for dSYM files
       def self.run_dsym_upload(params)
-        values = params.values                        
+        values = params.values
         api_token = params[:api_token]
         owner_name = params[:owner_name]
         app_name = params[:app_name]
@@ -294,15 +294,15 @@ module Fastlane
       end
 
       def self.run(params)
-        values = params.values        
+        values = params.values
         upload_dsym_only = params[:upload_dsym_only]
-        dsym = params[:dsym]        
+        dsym = params[:dsym]
 
         if upload_dsym_only
           self.run_dsym_upload(params)
         else
           self.run_release_upload(params)
-          self.run_dsym_upload(params)          
+          self.run_dsym_upload(params)
         end
 
         return values if Helper.test?
