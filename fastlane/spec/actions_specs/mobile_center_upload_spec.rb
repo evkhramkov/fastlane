@@ -226,6 +226,25 @@ describe Fastlane do
         end").runner.execute(:test)
       end
 
+      it "uses DSYM_OUTPUT_PATH as default for dsym" do
+        stub_create_dsym_upload(200)
+        stub_upload_dsym(200)
+        stub_update_dsym_upload(200, "committed")
+
+        values = Fastlane::FastFile.new.parse("lane :test do
+          Actions.lane_context[SharedValues::DSYM_OUTPUT_PATH] = './fastlane/spec/fixtures/dSYM/Themoji.dSYM.zip'
+          
+          mobile_center_upload({
+            api_token: 'xxx',
+            owner_name: 'owner',
+            app_name: 'app',
+            upload_dsym_only: true,
+          })
+        end").runner.execute(:test)
+
+        expect(values[:dsym_path]).to eq('./fastlane/spec/fixtures/dSYM/Themoji.dSYM.zip')
+      end
+
       it "handles invalid token error" do
         expect do
           stub_create_release_upload(401)

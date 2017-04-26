@@ -239,11 +239,23 @@ module Fastlane
         file = params[:file]
         dsym = params[:dsym]
 
-        # if build file exists, we should run dSYM upload only for ios
-        if dsym and (!file or File.extname(file) == '.ipa')
-          dsym_path = dsym
-
-          if File.directory?(dsym)
+        dsym_path = nil
+        if dsym
+          # we can use dsym parameter only if build file is ipa
+          if (!file or File.extname(file) == '.ipa')
+            dsym_path = dsym
+          end
+        else
+          # if dsym is note set, but build is ipa - check default path
+          if (file and File.exist?(file) and File.extname(file) == '.ipa')
+            dsym_path = file.to_s.gsub('.ipa', '.app.dSYM.zip')
+            UI.message("dSYM is found")
+          end
+        end
+        
+        # if we provided valid dsym path, or <ipa_path>.app.dSYM.zip was found, start dSYM upload
+        if dsym_path and File.exist?(dsym_path)
+          if File.directory?(dsym_path)
             UI.message("dSYM path is folder, zipping...")
             dsym_path = Actions::ZipAction.run(path: dsym, output_path: dsym + ".zip")
             UI.message("dSYM files zipped")
