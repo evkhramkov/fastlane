@@ -13,18 +13,31 @@ def stub_create_dsym_upload(status)
     .with(body: "{\"symbol_type\":\"Apple\"}")
     .to_return(
       status: status,
-      body: "{\"symbol_upload_id\":\"symbol_upload_id\",\"upload_url\":\"https://upload.com\"}",
+      body: "{\"symbol_upload_id\":\"symbol_upload_id\",\"upload_url\":\"https://upload_dsym.com\"}",
       headers: { 'Content-Type' => 'application/json' }
     )
 end
 
-def stub_upload(status)
+def stub_upload_build(status)
   stub_request(:post, "https://upload.com/")
+    .to_return(status: status, body: "", headers: {})
+end
+
+def stub_upload_dsym(status)
+  stub_request(:put, "https://upload_dsym.com/")
     .to_return(status: status, body: "", headers: {})
 end
 
 def stub_update_release_upload(status, release_status)
   stub_request(:patch, "https://api.mobile.azure.com/v0.1/apps/owner/app/release_uploads/upload_id")
+    .with(
+      body: "{\"status\":\"#{release_status}\"}"
+    )
+    .to_return(status: status, body: "{\"release_url\":\"v0.1/apps/owner/app/releases/1\"}", headers: {})
+end
+
+def stub_update_dsym_upload(status, release_status)
+  stub_request(:patch, "https://api.mobile.azure.com/v0.1/apps/owner/app/symbol_uploads/symbol_upload_id")
     .with(
       body: "{\"status\":\"#{release_status}\"}"
     )
@@ -138,7 +151,7 @@ describe Fastlane do
 
       it "works with valid parameters for android" do
         stub_create_release_upload(200)
-        stub_upload(200)
+        stub_upload_build(200)
         stub_update_release_upload(200, 'committed')
         stub_add_to_group(200)
 
@@ -154,11 +167,13 @@ describe Fastlane do
       end
 
       it "works with valid parameters for ios" do
-        stub_create_dsym_upload(200)
         stub_create_release_upload(200)
-        stub_upload(200)
+        stub_upload_build(200)
         stub_update_release_upload(200, 'committed')
         stub_add_to_group(200)
+        stub_create_dsym_upload(200)
+        stub_upload_dsym(200)
+        stub_update_dsym_upload(200, "committed")
 
         Fastlane::FastFile.new.parse("lane :test do
           mobile_center_upload({
@@ -166,27 +181,47 @@ describe Fastlane do
             owner_name: 'owner',
             app_name: 'app',
             file: './fastlane/spec/fixtures/appfiles/ipa_file_empty.ipa',
-            dsym: './fastlane/spec/fixtures/appfiles/Appfile_empty',
+            dsym: './fastlane/spec/fixtures/dSYM/Themoji.dSYM.zip',
             group: 'Testers'
           })
         end").runner.execute(:test)
       end
 
-      it "zips dSYM files is dsym parameter is folder" do
-        stub_create_dsym_upload(200)
+      it "zips dSYM files if dsym parameter is folder" do
         stub_create_release_upload(200)
-        stub_upload(200)
+        stub_upload_build(200)
         stub_update_release_upload(200, 'committed')
         stub_add_to_group(200)
+        stub_create_dsym_upload(200)
+        stub_upload_dsym(200)
+        stub_update_dsym_upload(200, "committed")
+
+        values = Fastlane::FastFile.new.parse("lane :test do
+          mobile_center_upload({
+            api_token: 'xxx',
+            owner_name: 'owner',
+            app_name: 'app',
+            file: './fastlane/spec/fixtures/appfiles/ipa_file_empty.ipa',
+            dsym: './fastlane/spec/fixtures/dSYM/Themoji.dSYM',
+            group: 'Testers'
+          })
+        end").runner.execute(:test)
+
+        expect(values[:dsym_path].end_with?(".zip")).to eq(true)
+      end
+
+      it "allows to send a dsym only" do
+        stub_create_dsym_upload(200)
+        stub_upload_dsym(200)
+        stub_update_dsym_upload(200, "committed")
 
         Fastlane::FastFile.new.parse("lane :test do
           mobile_center_upload({
             api_token: 'xxx',
             owner_name: 'owner',
             app_name: 'app',
-            file: './fastlane/spec/fixtures/appfiles/ipa_file_empty.ipa',
-            dsym: './fastlane/spec/fixtures/appfiles',
-            group: 'Testers'
+            upload_dsym_only: true,
+            dsym: './fastlane/spec/fixtures/dSYM/Themoji.dSYM.zip'
           })
         end").runner.execute(:test)
       end
@@ -207,9 +242,25 @@ describe Fastlane do
         end.to raise_error("Auth Error, provided invalid token")
       end
 
-      it "handles upload error" do
+      it "handles invalid token error in dSYM upload" do
+        expect do
+          stub_create_dsym_upload(401)
+
+          Fastlane::FastFile.new.parse("lane :test do
+            mobile_center_upload({
+              api_token: 'xxx',
+              owner_name: 'owner',
+              app_name: 'app',
+              upload_dsym_only: true,
+              dsym: './fastlane/spec/fixtures/dSYM/Themoji.dSYM.zip'
+            })
+          end").runner.execute(:test)
+        end.to raise_error("Auth Error, provided invalid token")
+      end
+
+      it "handles upload build error" do
         stub_create_release_upload(200)
-        stub_upload(400)
+        stub_upload_build(400)
         stub_update_release_upload(200, 'aborted')
 
         Fastlane::FastFile.new.parse("lane :test do
@@ -219,6 +270,22 @@ describe Fastlane do
             app_name: 'app',
             file: './fastlane/spec/fixtures/appfiles/apk_file_empty.apk',
             group: 'Testers'
+          })
+        end").runner.execute(:test)
+      end
+
+      it "handles upload dSYM error" do
+        stub_create_dsym_upload(200)
+        stub_upload_dsym(400)
+        stub_update_dsym_upload(200, 'aborted')
+
+        Fastlane::FastFile.new.parse("lane :test do
+          mobile_center_upload({
+            api_token: 'xxx',
+            owner_name: 'owner',
+            app_name: 'app',
+            upload_dsym_only: true,
+            dsym: './fastlane/spec/fixtures/dSYM/Themoji.dSYM.zip'
           })
         end").runner.execute(:test)
       end
@@ -239,7 +306,7 @@ describe Fastlane do
 
       it "handles not found distribution group" do
         stub_create_release_upload(200)
-        stub_upload(200)
+        stub_upload_build(200)
         stub_update_release_upload(200, 'committed')
         stub_add_to_group(404)
 
@@ -256,7 +323,7 @@ describe Fastlane do
 
       it "can use a generated changelog as release notes" do
         stub_create_release_upload(200)
-        stub_upload(200)
+        stub_upload_build(200)
         stub_update_release_upload(200, 'committed')
         stub_add_to_group(200)
 

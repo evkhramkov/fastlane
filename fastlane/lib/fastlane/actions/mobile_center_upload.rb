@@ -117,6 +117,9 @@ module Fastlane
         end
       end
 
+      # upload dSYM files to specified upload url
+      # if succeed, then commits the upload
+      # otherwise aborts
       def self.upload_dsym(api_token, owner_name, app_name, dsym, symbol_upload_id, upload_url)
         connection = self.connection(upload_url, true)
 
@@ -133,7 +136,7 @@ module Fastlane
         else
           UI.error("Error uploading dSYM #{response.status}: #{response.body}")
           self.update_dsym_upload(api_token, owner_name, app_name, symbol_upload_id, 'aborted')
-          UI.error("Release aborted")
+          UI.error("dSYM upload aborted")
           false
         end
       end
@@ -141,7 +144,7 @@ module Fastlane
       # upload binary for specified upload_url
       # if succeed, then commits the release
       # otherwise aborts
-      def self.upload(api_token, owner_name, app_name, file, upload_id, upload_url)
+      def self.upload_build(api_token, owner_name, app_name, file, upload_id, upload_url)
         connection = self.connection(upload_url)
 
         options = {}
@@ -227,23 +230,26 @@ module Fastlane
         end
       end
 
-      def self.run(params)
-        values = params.values
+      # run whole upload process for dSYM files
+      def self.run_dsym_upload(params)
+        values = params.values                        
         api_token = params[:api_token]
         owner_name = params[:owner_name]
         app_name = params[:app_name]
-        group = params[:group]
         file = params[:file]
         dsym = params[:dsym]
 
-        if dsym and (File.extname(file) == '.ipa')
+        # if build file exists, we should run dSYM upload only for ios
+        if dsym and (!file or File.extname(file) == '.ipa')
           dsym_path = dsym
 
           if File.directory?(dsym)
             UI.message("dSYM path is folder, zipping...")
-            dsym_path = Actions::ZipAction.run(path: dsym, output_path: dsym + ".dSYM.zip")
+            dsym_path = Actions::ZipAction.run(path: dsym, output_path: dsym + ".zip")
             UI.message("dSYM files zipped")
           end
+
+          values[:dsym_path] = dsym_path
 
           UI.message("Starting dSYM upload...")
           dsym_upload_details = self.create_dsym_upload(api_token, owner_name, app_name)
@@ -256,6 +262,18 @@ module Fastlane
             self.upload_dsym(api_token, owner_name, app_name, dsym_path, symbol_upload_id, upload_url)
           end
         end
+      end
+
+      # run whole upload process for release
+      def self.run_release_upload(params)
+        api_token = params[:api_token]
+        owner_name = params[:owner_name]
+        app_name = params[:app_name]
+        file = params[:file]
+        group = params[:group]
+
+        UI.user_error!("Couldn't find build file at path '#{file}'") unless file and File.exist?(file)
+        UI.user_error!("No Distribute Group given, pass using `group: 'group name'`") unless group and !group.empty?
 
         UI.message("Starting release upload...")
         upload_details = self.create_release_upload(api_token, owner_name, app_name)
@@ -264,16 +282,30 @@ module Fastlane
           upload_url = upload_details['upload_url']
 
           UI.message("Uploading release binary...")
-          uploaded = self.upload(api_token, owner_name, app_name, file, upload_id, upload_url)
+          uploaded = self.upload_build(api_token, owner_name, app_name, file, upload_id, upload_url)
 
           if uploaded
             release_url = uploaded['release_url']
             UI.message("Release committed")
 
             self.add_to_group(api_token, release_url, group, params[:release_notes])
-            return values if Helper.test?
           end
         end
+      end
+
+      def self.run(params)
+        values = params.values        
+        upload_dsym_only = params[:upload_dsym_only]
+        dsym = params[:dsym]        
+
+        if upload_dsym_only
+          self.run_dsym_upload(params)
+        else
+          self.run_release_upload(params)
+          self.run_dsym_upload(params)          
+        end
+
+        return values if Helper.test?
       end
 
       def self.description
@@ -282,10 +314,6 @@ module Fastlane
 
       def self.authors
         ["evkhramkov"]
-      end
-
-      def self.return_value
-        # If your method provides a return value, you can describe here what it does
       end
 
       def self.available_options
@@ -320,34 +348,37 @@ module Fastlane
           FastlaneCore::ConfigItem.new(key: :file,
                                   env_name: "MOBILE_CENTER_DISTRIBUTE_FILE",
                                description: "Build release path",
-                                  optional: false,
+                                  optional: true,
                                       type: String,
                               verify_block: proc do |value|
-                                UI.user_error!("Couldn't find build file at path '#{value}'") unless File.exist?(value)
                                 accepted_formats = [".apk", ".ipa"]
                                 UI.user_error!("Only \".apk\" and \".ipa\" formats are allowed, you provided \"#{File.extname(value)}\"") unless accepted_formats.include? File.extname(value)
                               end),
 
           FastlaneCore::ConfigItem.new(key: :dsym,
                                   env_name: "MOBILE_CENTER_DISTRIBUTE_DSYM",
-                               description: "Path to your symbols file. For iOS and Mac provide path to app.dSYM.zip. For Android provide path to mappings.txt file",
+                               description: "Path to your symbols file. For iOS provide path to app.dSYM.zip",
                              default_value: Actions.lane_context[SharedValues::DSYM_OUTPUT_PATH],
                                   optional: true,
                                       type: String,
                               verify_block: proc do |value|
                                 if value
-                                  UI.user_error!("Couldn't find build file at path '#{value}'") unless File.exist?(value)
+                                  UI.user_error!("Couldn't find dSYM file at path '#{value}'") unless File.exist?(value)
                                 end
                               end),
+
+          FastlaneCore::ConfigItem.new(key: :upload_dsym_only,
+                                  env_name: "MOBILE_CENTER_DISTRIBUTE_UPLOAD_DSYM_ONLY",
+                               description: "Flag to upload only the dSYM file to Mobile Center",
+                                  optional: true,
+                                 is_string: false,
+                             default_value: false),
 
           FastlaneCore::ConfigItem.new(key: :group,
                                   env_name: "MOBILE_CENTER_DISTRIBUTE_GROUP",
                                description: "Distribute group name",
-                                  optional: false,
-                                      type: String,
-                              verify_block: proc do |value|
-                                UI.user_error!("No Distribute Group given, pass using `group: 'group name'`") unless value and !value.empty?
-                              end),
+                                  optional: true,
+                                      type: String),
 
           FastlaneCore::ConfigItem.new(key: :release_notes,
                                   env_name: "MOBILE_CENTER_DISTRIBUTE_RELEASE_NOTES",
