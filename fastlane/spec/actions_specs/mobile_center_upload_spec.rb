@@ -303,7 +303,7 @@ describe Fastlane do
 
         values = Fastlane::FastFile.new.parse("lane :test do
           Actions.lane_context[SharedValues::DSYM_OUTPUT_PATH] = './fastlane/spec/fixtures/dSYM/Themoji.dSYM.zip'
-          
+
           mobile_center_upload({
             api_token: 'xxx',
             owner_name: 'owner',
