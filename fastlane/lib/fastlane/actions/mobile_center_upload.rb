@@ -132,8 +132,8 @@ module Fastlane
 
         case response.status
         when 200...300
-          UI.message("dSYM uploaded")
           self.update_dsym_upload(api_token, owner_name, app_name, symbol_upload_id, 'committed')
+          UI.success("dSYM uploaded")
         else
           UI.error("Error uploading dSYM #{response.status}: #{response.body}")
           self.update_dsym_upload(api_token, owner_name, app_name, symbol_upload_id, 'aborted')
