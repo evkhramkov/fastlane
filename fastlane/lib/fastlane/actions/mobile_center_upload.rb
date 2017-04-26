@@ -7,7 +7,7 @@ module Fastlane
 
     class MobileCenterUploadAction < Action
       # create request
-      def self.connection(upload_url = false)
+      def self.connection(upload_url = false, dsym = false)
         require 'faraday'
         require 'faraday_middleware'
 
@@ -17,8 +17,8 @@ module Fastlane
 
         Faraday.new(options) do |builder|
           if upload_url
-            builder.request :multipart
-            builder.request :url_encoded
+            builder.request :multipart unless dsym
+            builder.request :url_encoded unless dsym
           else
             builder.request :json
           end
@@ -28,7 +28,10 @@ module Fastlane
         end
       end
 
-      # creates new release upload and returns its upload_id and upload_url for app
+      # creates new release upload
+      # returns:
+      # upload_id
+      # upload_url
       def self.create_release_upload(api_token, owner_name, app_name)
         connection = self.connection
 
@@ -56,7 +59,11 @@ module Fastlane
         end
       end
 
-      # creates new dSYM upload, returns symbol_upload_id, upload_url, expiration_date
+      # creates new dSYM upload in mobile center
+      # returns:
+      # symbol_upload_id
+      # upload_url
+      # expiration_date
       def self.create_dsym_upload(api_token, owner_name, app_name)
         connection = self.connection
 
@@ -86,10 +93,49 @@ module Fastlane
         end
       end
 
-      def self.upload_dsym(api_token, owner_name, app_name, dsym, symbol_upload_id, upload_url)
-        connection = self.connection(upload_url)
+      # committs or aborts dsym upload
+      def self.update_dsym_upload(api_token, owner_name, app_name, symbol_upload_id, status)
+        connection = self.connection
 
-        options = {}
+        response = connection.patch do |req|
+          req.url("/v0.1/apps/#{owner_name}/#{app_name}/symbol_uploads/#{symbol_upload_id}")
+          req.headers['X-API-Token'] = api_token
+          req.body = {
+            "status" => status
+          }
+        end
+
+        case response.status
+        when 200...300
+          if ENV['DEBUG_ACTION']
+            UI.message("DEBUG: #{JSON.pretty_generate(response.body)}\n")
+          end
+          response.body
+        else
+          UI.error("Error #{response.status}: #{response.body}")
+          false
+        end
+      end
+
+      def self.upload_dsym(api_token, owner_name, app_name, dsym, symbol_upload_id, upload_url)
+        connection = self.connection(upload_url, true)
+
+        response = connection.put do |req|
+          req.headers['x-ms-blob-type'] = "BlockBlob"
+          req.headers['Content-Length'] = File.size(dsym).to_s
+          req.body = Faraday::UploadIO.new(dsym, 'application/octet-stream') if dsym and File.exist?(dsym)
+        end
+
+        case response.status
+        when 200...300
+          UI.message("dSYM uploaded")
+          self.update_dsym_upload(api_token, owner_name, app_name, symbol_upload_id, 'committed')
+        else
+          UI.error("Error uploading dSYM #{response.status}: #{response.body}")
+          self.update_dsym_upload(api_token, owner_name, app_name, symbol_upload_id, 'aborted')
+          UI.error("Release aborted")
+          false
+        end
       end
 
       # upload binary for specified upload_url
