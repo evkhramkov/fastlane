@@ -7,38 +7,22 @@ module Pilot
     def add_tester(options)
       start(options)
 
-      begin
-        tester = Spaceship::Tunes::Tester::External.find(config[:email])
-        if tester
-          UI.success("Existing tester #{tester.email}")
-        else
-          # make sure the user isn't already an internal tester, because we don't support those
-          internal_tester = Spaceship::Tunes::Tester::Internal.find(config[:email])
-          UI.user_error!("#{internal_tester.email} is an internal tester; pilot does not support internal testers") unless internal_tester.nil?
+      app = find_app(app_filter: config[:apple_id] || config[:app_identifier])
+      UI.user_error!("You must provide either a Apple ID for the app (with the `:apple_id` option) or app identifier (with the `:app_identifier` option)") unless app
 
-          tester = Spaceship::Tunes::Tester::External.create!(email: config[:email],
-                                                              first_name: config[:first_name],
-                                                              last_name: config[:last_name])
-          UI.success("Successfully added tester: #{tester.email} to your account")
+      tester = find_or_create_tester(email: config[:email], first_name: config[:first_name], last_name: config[:last_name])
+
+      begin
+        groups = Spaceship::TestFlight::Group.add_tester_to_groups!(tester: tester, app: app, groups: config[:groups])
+        if tester.kind_of?(Spaceship::Tunes::Tester::Internal)
+          UI.success("Successfully added tester to app #{app.name}")
+        else
+          group_names = groups.map(&:name).join(", ")
+          UI.success("Successfully added tester to app #{app.name} in group(s) #{group_names}")
         end
       rescue => ex
-        UI.error("Could not create tester #{config[:email]}")
+        UI.error("Could not add #{tester.email} to app: #{app.name}")
         raise ex
-      end
-
-      app_filter = (config[:apple_id] || config[:app_identifier])
-      if app_filter
-        begin
-          app = Spaceship::Application.find(app_filter)
-          UI.user_error!("Couldn't find app with '#{app_filter}'") unless app
-
-          groups = add_tester_to_groups!(tester: tester, app: app, groups: config[:groups])
-          group_names = groups.map(&:name).join(", ")
-          UI.success("Successfully added tester to app #{app_filter} in group(s) #{group_names}")
-        rescue => ex
-          UI.error("Could not add #{tester.email} to app: #{app.name}")
-          raise ex
-        end
       end
     end
 
@@ -58,38 +42,30 @@ module Pilot
       start(options)
 
       tester = Spaceship::Tunes::Tester::External.find(config[:email])
+      tester ||= Spaceship::Tunes::Tester::Internal.find(config[:email])
+      UI.user_error!("Tester not found: #{config[:email]}") if tester.nil?
 
-      if tester
-        app_filter = (config[:apple_id] || config[:app_identifier])
-        if app_filter
-          begin
-            app = Spaceship::Application.find(app_filter)
-            UI.user_error!("Couldn't find app with '#{app_filter}'") unless app
+      app = find_app(app_filter: config[:apple_id] || config[:app_identifier])
+      unless app
+        tester.delete!
+        UI.success("Successfully removed tester #{tester.email}")
+      end
 
-            # If no groups are passed to options, remove the tester from the app-level,
-            # otherwise remove the tester from the groups specified.
-            if config[:groups].nil?
-              test_flight_tester = Spaceship::TestFlight::Tester.find(app_id: app.apple_id, email: tester.email)
-              test_flight_tester.remove_from_app!(app_id: app.apple_id)
-              UI.success("Successfully removed tester, #{test_flight_tester.email}, from app: #{app_filter}")
-            else
-              groups = remove_tester_from_groups!(tester: tester, app: app, groups: config[:groups])
-              group_names = groups.map(&:name).join(", ")
-              UI.success("Successfully removed tester #{tester.email} from app #{app_filter} in group(s) #{group_names}")
-            end
-          rescue => ex
-            UI.error("Could not remove #{tester.email} from app: #{ex}")
-            raise ex
-          end
+      begin
+        # If no groups are passed to options, remove the tester from the app-level,
+        # otherwise remove the tester from the groups specified.
+        if config[:groups].nil? && tester.kind_of?(Spaceship::Tunes::Tester::External)
+          test_flight_tester = Spaceship::TestFlight::Tester.find(app_id: app.apple_id, email: tester.email)
+          test_flight_tester.remove_from_app!(app_id: app.apple_id)
+          UI.success("Successfully removed tester, #{test_flight_tester.email}, from app: #{app.name}")
         else
-          tester.delete!
-          UI.success("Successfully removed tester #{tester.email}")
+          groups = Spaceship::TestFlight::Group.remove_tester_from_groups!(tester: tester, app: app, groups: config[:groups])
+          group_names = groups.map(&:name).join(", ")
+          UI.success("Successfully removed tester #{tester.email} from app #{app.name} in group(s) #{group_names}")
         end
-      else
-        internal_tester = Spaceship::Tunes::Tester::Internal.find(config[:email])
-        UI.user_error!("#{internal_tester.email} is an internal tester; pilot does not support internal testers") unless internal_tester.nil?
-
-        UI.user_error!("Tester not found: #{config[:email]}")
+      rescue => ex
+        UI.error("Could not remove #{tester.email} from app: #{ex}")
+        raise ex
       end
     end
 
@@ -106,30 +82,31 @@ module Pilot
 
     private
 
-    def perform_for_groups_in_app(app: nil, groups: nil, &block)
-      if groups.nil?
-        default_external_group = app.default_external_group
-        if default_external_group.nil?
-          UI.user_error!("The app #{app.name} does not have a default external group. Please make sure to pass group names to the `:groups` option.")
-        end
-        test_flight_groups = [default_external_group]
-      else
-        test_flight_groups = Spaceship::TestFlight::Group.filter_groups(app_id: app.apple_id) do |group|
-          groups.include?(group.name)
-        end
-
-        UI.user_error!("There are no groups available matching the names passed to the `:groups` option.") if test_flight_groups.empty?
+    def find_app(app_filter: nil)
+      if app_filter
+        app = Spaceship::Application.find(app_filter)
+        UI.user_error!("Could not find an app by #{app_filter}") unless app
+        return app
       end
-
-      test_flight_groups.each(&block)
+      nil
     end
 
-    def add_tester_to_groups!(tester: nil, app: nil, groups: nil)
-      perform_for_groups_in_app(app: app, groups: groups) { |group| group.add_tester!(tester) }
-    end
+    def find_or_create_tester(email: nil, first_name: nil, last_name: nil)
+      tester = Spaceship::Tunes::Tester::Internal.find(config[:email])
+      tester ||= Spaceship::Tunes::Tester::External.find(config[:email])
 
-    def remove_tester_from_groups!(tester: nil, app: nil, groups: nil)
-      perform_for_groups_in_app(app: app, groups: groups) { |group| group.remove_tester!(tester) }
+      if tester
+        UI.success("Existing tester #{tester.email}")
+      else
+        tester = Spaceship::Tunes::Tester::External.create!(email: config[:email],
+                                                            first_name: config[:first_name],
+                                                            last_name: config[:last_name])
+        UI.success("Successfully added tester: #{tester.email} to your account")
+      end
+      return tester
+    rescue => ex
+      UI.error("Could not create tester #{config[:email]}")
+      raise ex
     end
 
     def list_testers_by_app(app_filter)
