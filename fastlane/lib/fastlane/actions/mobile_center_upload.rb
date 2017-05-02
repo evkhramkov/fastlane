@@ -440,7 +440,16 @@ module Fastlane
             app_name: "testing_app",
             apk: "./app-release.apk",
             group: "Testers",
-            release_notes: ""
+            release_notes: "release notes"
+          )',
+          'mobile_center_upload(
+            api_token: "...",
+            owner_name: "mobile_center_owner",
+            app_name: "testing_app",
+            apk: "./app-release.ipa",
+            group: "Testers",
+            dsym: "./app.dSYM.zip",
+            release_notes: "release notes"
           )'
         ]
       end
