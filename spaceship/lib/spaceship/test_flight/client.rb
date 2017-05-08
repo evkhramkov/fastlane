@@ -34,20 +34,6 @@ module Spaceship::TestFlight
       handle_response(response)
     end
 
-    def testers_for_app(app_id: nil)
-      assert_required_params(__method__, binding)
-      url = "providers/#{team_id}/apps/#{app_id}/testers"
-      response = request(:get, url)
-      handle_response(response)
-    end
-
-    def delete_tester_from_app(app_id: nil, tester_id: nil)
-      assert_required_params(__method__, binding)
-      url = "providers/#{team_id}/apps/#{app_id}/testers/#{tester_id}"
-      response = request(:delete, url)
-      handle_response(response)
-    end
-
     ##
     # @!group Builds API
     ##
@@ -111,6 +97,20 @@ module Spaceship::TestFlight
     # @!group Testers API
     ##
 
+    def testers_for_app(app_id: nil)
+      assert_required_params(__method__, binding)
+      url = "providers/#{team_id}/apps/#{app_id}/testers?limit=10000"
+      response = request(:get, url)
+      handle_response(response)
+    end
+
+    def delete_tester_from_app(app_id: nil, tester_id: nil)
+      assert_required_params(__method__, binding)
+      url = "providers/#{team_id}/apps/#{app_id}/testers/#{tester_id}"
+      response = request(:delete, url)
+      handle_response(response)
+    end
+
     def post_tester(app_id: nil, tester: nil)
       assert_required_params(__method__, binding)
 
@@ -156,15 +156,22 @@ module Spaceship::TestFlight
     end
 
     ##
-    # @!group TestInfo
+    # @!group AppTestInfo
     ##
 
-    def put_testinfo(app_id: nil, testinfo: nil)
+    def get_app_test_info(app_id: nil)
+      assert_required_params(__method__, binding)
+
+      response = request(:get, "providers/#{team_id}/apps/#{app_id}/testInfo")
+      handle_response(response)
+    end
+
+    def put_app_test_info(app_id: nil, app_test_info: nil)
       assert_required_params(__method__, binding)
 
       response = request(:put) do |req|
         req.url "providers/#{team_id}/apps/#{app_id}/testInfo"
-        req.body = testinfo.to_json
+        req.body = app_test_info.to_json
         req.headers['Content-Type'] = 'application/json'
       end
       handle_response(response)
