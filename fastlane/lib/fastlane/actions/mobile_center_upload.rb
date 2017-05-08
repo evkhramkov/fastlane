@@ -39,7 +39,7 @@ module Fastlane
         response = connection.post do |req|
           req.url("/v0.1/apps/#{owner_name}/#{app_name}/release_uploads")
           req.headers['X-API-Token'] = api_token
-          req.headers['user-agent'] = "fastlane"
+          req.headers['internal-request-source'] = "fastlane"
           req.body = {}
         end
 
@@ -72,7 +72,7 @@ module Fastlane
         response = connection.post do |req|
           req.url("/v0.1/apps/#{owner_name}/#{app_name}/symbol_uploads")
           req.headers['X-API-Token'] = api_token
-          req.headers['user-agent'] = "fastlane"
+          req.headers['internal-request-source'] = "fastlane"
           req.body = {
             symbol_type: 'Apple'
           }
@@ -103,7 +103,7 @@ module Fastlane
         response = connection.patch do |req|
           req.url("/v0.1/apps/#{owner_name}/#{app_name}/symbol_uploads/#{symbol_upload_id}")
           req.headers['X-API-Token'] = api_token
-          req.headers['user-agent'] = "fastlane"
+          req.headers['internal-request-source'] = "fastlane"
           req.body = {
             "status" => status
           }
@@ -130,7 +130,7 @@ module Fastlane
         response = connection.put do |req|
           req.headers['x-ms-blob-type'] = "BlockBlob"
           req.headers['Content-Length'] = File.size(dsym).to_s
-          req.headers['user-agent'] = "fastlane"
+          req.headers['internal-request-source'] = "fastlane"
           req.body = Faraday::UploadIO.new(dsym, 'application/octet-stream') if dsym and File.exist?(dsym)
         end
 
@@ -158,7 +158,7 @@ module Fastlane
         options[:ipa] = Faraday::UploadIO.new(file, 'application/octet-stream') if file and File.exist?(file)
 
         response = connection.post do |req|
-          req.headers['user-agent'] = "fastlane"
+          req.headers['internal-request-source'] = "fastlane"
           req.body = options
         end
 
@@ -181,7 +181,7 @@ module Fastlane
         response = connection.patch do |req|
           req.url("/v0.1/apps/#{owner_name}/#{app_name}/release_uploads/#{upload_id}")
           req.headers['X-API-Token'] = api_token
-          req.headers['user-agent'] = "fastlane"
+          req.headers['internal-request-source'] = "fastlane"
           req.body = {
             "status" => status
           }
@@ -206,7 +206,7 @@ module Fastlane
         response = connection.patch do |req|
           req.url("/#{release_url}")
           req.headers['X-API-Token'] = api_token
-          req.headers['user-agent'] = "fastlane"
+          req.headers['internal-request-source'] = "fastlane"
           req.body = {
             "distribution_group_name" => group_name,
             "release_notes" => release_notes
