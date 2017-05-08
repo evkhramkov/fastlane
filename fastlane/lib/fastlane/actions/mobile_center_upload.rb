@@ -249,12 +249,12 @@ module Fastlane
         else
           # if dsym is note set, but build is ipa - check default path
           if file and File.exist?(file) and File.extname(file) == '.ipa'
-            dsym_path = file.to_s.gsub('.ipa', '.app.dSYM.zip')
+            dsym_path = file.to_s.gsub('.ipa', '.dSYM.zip')
             UI.message("dSYM is found")
           end
         end
 
-        # if we provided valid dsym path, or <ipa_path>.app.dSYM.zip was found, start dSYM upload
+        # if we provided valid dsym path, or <ipa_path>.dSYM.zip was found, start dSYM upload
         if dsym_path and File.exist?(dsym_path)
           if File.directory?(dsym_path)
             UI.message("dSYM path is folder, zipping...")
@@ -325,6 +325,12 @@ module Fastlane
 
       def self.authors
         ["evkhramkov"]
+      end
+
+      def self.details
+        [
+          "Symbols will also be uploaded automatically if a `app.dSYM.zip` file is found next to `app.ipa`. In case it is located in a different place you can specify the path explicitly in `:dsym` parameter."
+        ]
       end
 
       def self.available_options
